@@ -1,0 +1,18 @@
+# Environnements et dépendances
+.venv/
+node_modules/
+__pycache__/
+
+# Variables d'environnement et secrets
+*.env*
+.env.txt
+00_Config/.env.txt
+
+# Fichiers Azure ML
+*.amlignore*
+*.amltmp
+data/
+check_integrity.py
+main.py
+clone_azure_docs.sh
+01_Knowledge_Base/data
