@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-# 🟢 IMPORT POUR LA DÉTECTION DE LANGUE
+
 from langdetect import detect 
 
 from agent_rag import BrainAgent
@@ -30,14 +30,14 @@ async def startup_event():
     print("🚀 Démarrage du Serveur FastAPI...")
     await brain.setup()
     
-    print("🔥 Lancement du Warm-up réseau (pour éviter les 13s de latence au premier client)...")
+    print(" Lancement du Warm-up réseau (pour éviter les 13s de latence au premier client)...")
     try:
         await brain.search_index_manager.search("warmup test réseau")
-        print("✅ Réseau débouché et prêt (IPv4) !")
+        print(" Réseau débouché et prêt (IPv4) !")
     except Exception as e:
-        print(f"⚠️ Warm-up a échoué, mais l'API continue : {e}")
+        print(f" Warm-up a échoué, mais l'API continue : {e}")
 
-    print("✅ Index RAG vérifié. API prête à recevoir des requêtes !")
+    print(" Index RAG vérifié. API prête à recevoir des requêtes !")
 
 class ChatRequest(BaseModel):
     message: str
@@ -46,9 +46,7 @@ class ChatRequest(BaseModel):
     lang: str = "fr"
     is_audio: bool = False
 
-# ==========================================
-# 🧠 ROUTE 1 : LE CHAT (STREAMING CLASSIQUE)
-# ==========================================
+
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     try:
@@ -66,9 +64,7 @@ async def chat_endpoint(request: ChatRequest):
             consigne_langue = "\n\n(Règle stricte: Formule ta réponse IMPÉRATIVEMENT en Français.)" if final_lang == "fr" else "\n\n(Strict rule: Answer entirely in English.)"
             message_securise = request.message + consigne_langue
 
-            # ---------------------------------------------------------
-            # 🌊 MODE TEXTE : VRAI STREAMING TEMPS RÉEL (Mot par mot)
-            # ---------------------------------------------------------
+           
             if not request.is_audio:
                 async for chunk in agent.run_stream(message=message_securise, user_id=request.user_id, session_id=request.session_id):
                     payload = {"chunk": chunk, "status": "streaming", "lang": final_lang}
@@ -76,15 +72,13 @@ async def chat_endpoint(request: ChatRequest):
                 
                 yield json.dumps({"chunk": "", "status": "completed", "lang": final_lang}) + "\n"
 
-            # ---------------------------------------------------------
-            # 🔊 MODE AUDIO : BUFFER DE PHRASES (Pour Deepgram TTS)
-            # ---------------------------------------------------------
+          
             else:
                 full_text = ""
                 async for chunk in agent.run_stream(message=message_securise, user_id=request.user_id, session_id=request.session_id):
                     full_text += chunk
                 
-                # On le découpe en phrases propres pour la voix
+               
                 sentences = re.split(r'(?<=[.!?]) +', full_text)
                 for sentence in sentences:
                     clean_sentence = sentence.strip()
@@ -101,9 +95,7 @@ async def chat_endpoint(request: ChatRequest):
 
     return StreamingResponse(generate_response(), media_type="application/x-ndjson")
 
-# ==========================================
-# 🔊 ROUTE 2 : LA BOUCHE (DEEPGRAM TTS)
-# ==========================================
+
 @app.get("/api/tts")
 def tts_endpoint(text: str, lang: str = "fr"):
     print(f"🔊 Demande TTS ({lang}) : {text}")
@@ -122,18 +114,36 @@ def tts_endpoint(text: str, lang: str = "fr"):
         response = requests.post(DEEPGRAM_URL, headers=headers, json={"text": text})
         
         if response.status_code != 200:
-            print(f"❌ Erreur Serveur Deepgram: {response.text}")
+            print(f" Erreur Serveur Deepgram: {response.text}")
             raise HTTPException(status_code=500, detail=f"Erreur Deepgram: {response.text}")
 
         return Response(content=response.content, media_type="audio/wav")
         
     except Exception as e:
-        print(f"❌ Erreur locale TTS : {e}")
+        print(f" Erreur locale TTS : {e}")
         try:
             raise HTTPException(status_code=500, detail=str(e))
         except NameError:
             return {"error": str(e)}
+# --- NOUVELLE ROUTE FINOPS : CLÔTURE DE SESSION ---
 
+class EndSessionRequest(BaseModel):
+    user_id: str
+    session_id: str
+
+@app.post("/api/session/end")
+async def end_session(request: EndSessionRequest):
+    print(f"🚪 [API] L'étudiant {request.user_id} ferme la session {request.session_id}. Lancement du bilan pédagogique...")
+    
+    try:
+        # On appelle la fonction optimisée de ton MemoryManager
+        await brain.memory.trigger_background_summary(request.user_id, request.session_id)
+        
+        return {"status": "success", "message": "Bilan de session généré et sauvegardé en mémoire longue avec succès."}
+    
+    except Exception as e:
+        print(f"❌ [API] Erreur lors de la clôture de session: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du résumé de session.")
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -6,6 +6,7 @@ memory_management.py — Gestion de Mémoire Cloud-Native avec Azure Cosmos DB (
     2. Cosmos DB Ready : Remplacement du stockage JSON local par Azure Cosmos DB.
     3. Distinction User / Session : La mémoire longue suit l'étudiant, la courte suit la discussion.
     4. Sécurité : Vérification stricte des credentials Cloud au démarrage.
+    5. FinOps & Pédagogie : Le résumé de session est optimisé pour être appelé une seule fois à la déconnexion.
 """
 
 import os
@@ -26,11 +27,9 @@ from openai import AsyncAzureOpenAI
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import PartitionKey, exceptions
 
-# ============================================================
-# 0. ABSTRACTION DU STOCKAGE (Adaptateur Cosmos DB)
-# ============================================================
+
 class DatabaseAdapter:
-    """Interface abstraite. Sépare clairement le Court Terme du Long Terme."""
+    
     
     async def save_message(self, user_id: str, session_id: str, role: str, content: str):
         raise NotImplementedError
@@ -48,9 +47,9 @@ class DatabaseAdapter:
 class CosmosDBAdapter(DatabaseAdapter):
     """Adaptateur pour Azure Cosmos DB (Production)"""
     def __init__(self, endpoint: str, key: str, db_name: str, container_name: str):
-        # 🛡️ SÉCURITÉ TECH LEAD : On vérifie que les variables ne sont pas vides
+     
         if not endpoint or not key:
-            raise ValueError(f"🔴 ERREUR CRITIQUE : Les identifiants Cosmos DB sont vides ! Vérifie les noms dans ton fichier .env. Endpoint reçu: {endpoint}")
+            raise ValueError(f" ERREUR CRITIQUE : Les identifiants Cosmos DB sont vides ! Vérifie les noms dans ton fichier .env. Endpoint reçu: {endpoint}")
             
         self.client = CosmosClient(endpoint, key)
         self.db_name = db_name
@@ -66,7 +65,7 @@ class CosmosDBAdapter(DatabaseAdapter):
             id=self.container_name,
             partition_key=PartitionKey(path="/id")
         )
-        print(f"✅ CosmosDB Connecté (Tuteur) : DB '{self.db_name}' et Container '{self.container_name}' prêts.")
+        print(f" CosmosDB Connecté (Tuteur) : DB '{self.db_name}' et Container '{self.container_name}' prêts.")
 
     async def _read_doc(self, doc_id: str) -> Dict:
         try:
@@ -114,14 +113,8 @@ class CosmosDBAdapter(DatabaseAdapter):
         return doc.get("data", [])
 
 
-# ============================================================
-# 1. SHORT MEMORY — Mémoire à court terme (Stateless)
-# ============================================================
 class ShortMemory:
-    """
-    Ne stocke PLUS RIEN en RAM ! 
-    Récupère la fenêtre de contexte à la volée depuis la DB.
-    """
+  
     def __init__(self, db_adapter: DatabaseAdapter, max_tokens: int = 6000, model_name: str = "cl100k_base"):
         self.db = db_adapter
         self.max_tokens = max_tokens
@@ -145,9 +138,6 @@ class ShortMemory:
         return valid_messages
 
 
-# ============================================================
-# 2. LONG MEMORY — Mémoire de l'Étudiant
-# ============================================================
 class LongMemory:
     """Suit l'étudiant (user_id) à travers toutes ses sessions passées."""
     def __init__(self, db_adapter: DatabaseAdapter, max_context: int = 5):
@@ -173,9 +163,6 @@ class LongMemory:
         return "\n".join(lines)
 
 
-# ============================================================
-# 3. MEMORY MANAGER — Le Cerveau Orchestrateur
-# ============================================================
 class MemoryManager:
     def __init__(self, oai_client: AsyncAzureOpenAI, chat_model: str, db_adapter: DatabaseAdapter):
         self._client = oai_client
@@ -198,22 +185,32 @@ class MemoryManager:
         
         long_ctx, short_hist = await asyncio.gather(long_task, short_task)
         
-        formatted_long_ctx = f"📚 PROFIL & HISTORIQUE DE L'ÉTUDIANT :\n{long_ctx}" if long_ctx else ""
+        formatted_long_ctx = f" PROFIL & HISTORIQUE DE L'ÉTUDIANT :\n{long_ctx}" if long_ctx else ""
         return formatted_long_ctx, short_hist
 
     async def trigger_background_summary(self, user_id: str, session_id: str):
-        """Génère un résumé pédagogique de la session."""
+        """
+        Génère un résumé pédagogique de la session.
+        ⚠️ ATTENTION FINOPS & ARCHITECTURE : Ne jamais appeler cette fonction dans la boucle de chat.
+        Elle doit être appelée UNIQUEMENT au moment où l'étudiant quitte l'application ou ferme la session.
+        """
         history = await self.short.get_history(session_id)
         if len(history) < 4:
+            print(f"ℹ️ [MemoryManager] Session {session_id} trop courte pour nécessiter un résumé.")
             return 
 
-        print(f"\n💭 [MemoryManager] Génération du résumé pour {user_id} (Session: {session_id})...")
+        print(f"\n💭 [MemoryManager] Génération du Bilan Pédagogique de fin de session pour l'étudiant {user_id}...")
         historique_str = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in history)
         
         prompt = (
-            "Tu es l'assistant de mémoire d'une plateforme e-learning Cloud.\n"
-            "Résume les compétences acquises ou les difficultés rencontrées par cet étudiant "
-            "lors de cette session. Sois précis sur les concepts techniques (ex: Azure, VM, VNet).\n\n"
+            "Tu es le superviseur pédagogique d'une plateforme e-learning.\n"
+            "Analyse cette conversation finalisée et rédige un rapport ultra-concis (exactement 4 phrases) "
+            "qui servira de mémoire à long terme pour le Tuteur.\n\n"
+            "INSTRUCTIONS STRICTES (Rédige 1 phrase par point) :\n"
+            "1. CONCEPTS : Note le ou les concepts techniques abordés.\n"
+            "2. ACQUIS : Indique clairement ce que l'étudiant a bien compris ou validé.\n"
+            "3. BLOCAGES : Indique les difficultés qui nécessiteront des révisions lors de sa prochaine connexion.\n"
+            "4. SKILLS : Liste les nouvelles compétences (skills) que l'étudiant vient d'acquérir aujourd'hui.\n\n"
             f"CONVERSATION :\n{historique_str}"
         )
         
@@ -221,11 +218,11 @@ class MemoryManager:
             response = await self._client.chat.completions.create(
                 model=self._chat_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=200,
-                temperature=0.2
+                max_tokens=250,
+                temperature=0.2 # Température très basse pour rester factuel
             )
             resume = response.choices[0].message.content.strip()
-            await self.long.add_summary(user_id, resume, subject=f"Session {session_id[:8]}")
-            print(f"✅ Résumé sauvegardé dans Cosmos DB pour l'étudiant {user_id}")
+            await self.long.add_summary(user_id, resume, subject=f"Bilan de Fin de Session")
+            print(f" [MemoryManager] Bilan sauvegardé avec succès dans Cosmos DB pour {user_id}")
         except Exception as e:
-            print(f"⚠️ Erreur résumé Asynchrone: {e}")
+            print(f" [MemoryManager] Erreur critique lors du résumé : {e}")
