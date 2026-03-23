@@ -95,7 +95,7 @@ class MemoryAgentProxy:
                 yield text_chunk 
 
         t2 = time.time()
-        print(f"⏱️ [2b] Fin du Streaming : {t2 - t1:.2f} secondes")
+        print(f" [2b] Fin du Streaming : {t2 - t1:.2f} secondes")
 
        
         asyncio.create_task(self.memory.add_agent_message(user_id, session_id, full_response))
