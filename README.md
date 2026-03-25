@@ -1,58 +1,50 @@
-# 🎓 Subul Agent Tuteur IA
+# ☁️ Subul Tuteur IA (Agent Tutor)
 
-Un tuteur pédagogique intelligent et interactif, conçu pour accompagner les étudiants (ex: certifications AZ-900) avec une expérience vocale et textuelle en temps réel. 
+Un tuteur interactif intelligent, vocal et textuel, conçu pour accompagner les étudiants dans leurs parcours d'apprentissage Cloud. 
 
-Propulsé par une architecture RAG avancée et des flux audio basse latence, l'Agent Tuteur offre des conversations fluides, naturelles et bilingues.
+Grâce à une architecture de streaming bidirectionnel, ce tuteur offre une expérience de conversation naturelle, ultra-rapide (zéro latence) et bilingue (Français / Anglais).
 
 ---
 
-## ✨ Fonctionnalités Clés
+## ✨ Fonctionnalités Principales
 
-* 🗣️ **Vocal Temps Réel (Latence < 1s)** : 
-    * **Oreilles (STT)** : Transcription instantanée via **Deepgram** (modèle `nova-3`) avec détection automatique de la langue.
+* 🗣️ **Mode Vocal Temps Réel** : 
+    * **Oreilles (STT)** : Transcription instantanée via **Deepgram** (modèle `nova-3`).
     * **Voix (TTS)** : Synthèse vocale ultra-réaliste via **Cartesia** (modèle `sonic-3` en 44100Hz).
-* ⚡ **Streaming Hybride Optimisé** : Le backend FastAPI n'attend pas la fin de la phrase de l'IA. Dès qu'une ponctuation est générée, le flux audio est envoyé au frontend, garantissant une latence quasi nulle.
-* 🧠 **Intelligence RAG (Retrieval-Augmented Generation)** : L'agent s'appuie sur une base documentaire indexée pour fournir des explications précises sur les cours et les labs.
-* 🌍 **Bilingue Dynamique** : Détection de la langue de l'utilisateur (FR/EN) et adaptation instantanée de la voix de l'IA et de ses réponses.
-* 💾 **Mémoire & Bilan Pédagogique** : À la fin de chaque session, un résumé asynchrone est généré et stocké en mémoire longue.
-* 📎 **Support Multimodal** : Capacité d'analyser des images/captures d'écran envoyées par l'étudiant.
+* ⚡ **Streaming Hybride Optimisé** : Le frontend (React) n'attend pas la fin de la réponse. Les mots générés par le backend (FastAPI) sont expédiés au moteur vocal dès qu'une ponctuation est détectée.
+* 🧠 **Intelligence RAG** : Le tuteur interroge une base vectorielle (Azure Search) pour fournir un contexte précis sur les cours et les labs.
+* 🌍 **Bilingue Intelligent** : Détection automatique de la langue (FR/EN) et bascule instantanée vers la voix appropriée.
+* 📝 **Mémoire & Bilan** : Génération asynchrone d'un résumé pédagogique à la clôture de la session.
+
+---
+
+## 🎙️ Identifiants Vocaux (Cartesia)
+
+Pour garantir la meilleure prononciation et le meilleur accent, ce projet utilise des voix spécifiques configurées en dur dans le frontend (WebSockets) et le backend (Fallback API) :
+
+* 🇬🇧 **Voix Anglaise** (Tessa / English) : `6ccbfb76-1fc6-48f7-b71d-91ac6298247b`
+* 🇫🇷 **Voix Française** (Léa / Parisian) : `65b25c5d-ff07-4687-a04c-da2f43ef6fa9`
 
 ---
 
 ## 🏗️ Stack Technique
 
-### Frontend (Client)
-* **Framework** : React / Next.js
-* **Styling** : Tailwind CSS, Framer Motion
-* **Audio** : WebSockets natifs, `AudioContext` (44100Hz), `MediaRecorder`
-* **Rendu texte** : `react-markdown`
+### Frontend (Client React)
+* **Framework** : React avec Tailwind CSS pour le style.
+* **Audio** : WebSockets, `AudioContext` pour la lecture en flux binaire brut (`pcm_f32le`), `MediaRecorder` pour la capture.
+* **Rendu** : `react-markdown` pour afficher la structure des réponses.
 
-### Backend (Serveur)
-* **Framework** : FastAPI (Python) avec `asyncio`
-* **Agent IA** : LangChain / Architecture RAG personnalisée (`BrainAgent`)
-* **Détection de langue** : `langdetect`
-* **Base de données / FinOps** : Azure Cosmos DB (historique, mémoire longue, gestion des quotas).
-
----
-
-## 🛠️ Prérequis
-
-Avant de lancer le projet, assurez-vous d'avoir :
-* **Node.js** (v18+)
-* **Python** (v3.8+)
-* Des clés API valides pour :
-    * [Deepgram](https://deepgram.com/) (Speech-to-Text)
-    * [Cartesia](https://cartesia.ai/) (Text-to-Speech)
-    * Votre fournisseur LLM (OpenAI, Azure OpenAI, etc., configuré dans le `BrainAgent`)
+### Backend (Serveur Python)
+* **Framework** : FastAPI avec `asyncio` pour des réponses `application/x-ndjson`.
+* **Agent IA** : `AccompanyingAgent` (Architecture RAG).
+* **Détection de langue** : Librairie `langdetect`.
 
 ---
 
 ## ⚙️ Configuration (.env)
 
-Créez un fichier `.env` à la racine du **Frontend** :
+**1. Côté Frontend (Vite/React) :**
+Créez un fichier `.env` à la racine de votre interface React :
 ```env
 VITE_DEEPGRAM_API_KEY=votre_cle_deepgram
 VITE_CARTESIA_API_KEY=votre_cle_cartesia
-# Si Next.js :
-# NEXT_PUBLIC_DEEPGRAM_API_KEY=votre_cle_deepgram
-# NEXT_PUBLIC_CARTESIA_API_KEY=votre_cle_cartesia
