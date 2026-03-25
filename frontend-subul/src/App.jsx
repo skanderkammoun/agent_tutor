@@ -779,9 +779,7 @@ export default function App() {
   // Contrôleur pour tuer la requête serveur
   const abortControllerRef = useRef(null);
 
-  // =======================================================
-  // 🆔 GESTION DES IDENTIFIANTS
-  // =======================================================
+
   const [userId] = useState(() => {
     let savedId = localStorage.getItem('subul_user_id');
     if (!savedId) {
@@ -792,9 +790,9 @@ export default function App() {
   });
 
   const [sessionId] = useState(() => 'session_' + Math.random().toString(36).substr(2, 9));
-  // =======================================================
+  
 
-  // ⚙️ INITIALISATION DU MOTEUR AUDIO (Pour Cartesia à 44100Hz)
+  
   useEffect(() => {
     playbackContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
   }, []);
@@ -803,7 +801,7 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, liveTranscript]);
 
-  // 🛑 FONCTION POUR COUPER L'IA INSTANTANÉMENT
+  
   const interruptAssistant = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -812,7 +810,7 @@ export default function App() {
     setIsLoading(false);
   };
 
-  // 🔊 LECTURE DU FLUX BINAIRE CARTESIA (Float32Array) EN TEMPS RÉEL
+  
   const playAudioChunk = (arrayBuffer) => {
     const ctx = playbackContextRef.current;
     if (!ctx) return;
@@ -830,7 +828,7 @@ export default function App() {
     nextPlayTimeRef.current += audioBuffer.duration;
   };
 
-  // --- 🧠 ENVOI MESSAGE & STREAMING HYBRIDE ---
+  
   const sendMessage = async (rawMessage, isAudio = false) => {
     if (!rawMessage || !rawMessage.trim()) return;
 
@@ -851,7 +849,7 @@ export default function App() {
       let contextId = "ctx-" + Date.now();
       let currentLang = 'fr'; 
 
-      // 🚀 Ouverture WebSocket Cartesia TTS
+      
       if (isAudio) {
         ttsWs = new WebSocket(`wss://api.cartesia.ai/tts/websocket?api_key=${import.meta.env.VITE_CARTESIA_API_KEY}&cartesia_version=2024-06-10`);
         
@@ -903,7 +901,7 @@ export default function App() {
         const { done, value } = await reader.read();
         if (done) {
           if (isAudio && ttsWs) {
-            const voiceId = currentLang === 'en' ? "6ccbfb76-1fc6-48f7-b71d-91ac6298247b" : "f786b574-daa5-4673-aa0c-cbe3e8534c02";
+            const voiceId = currentLang === 'en' ? "6ccbfb76-1fc6-48f7-b71d-91ac6298247b" : "65b25c5d-ff07-4687-a04c-da2f43ef6fa9";
             const endPayload = { 
                 context_id: contextId, 
                 model_id: "sonic-3",
@@ -945,7 +943,7 @@ export default function App() {
                   const cleanText = chunk.replace(/[*#_~>|\-`"']/g, '');
                   if (cleanText !== "") {
                     currentLang = lang; 
-                    const voiceId = currentLang === 'en' ? "6ccbfb76-1fc6-48f7-b71d-91ac6298247b" : "f786b574-daa5-4673-aa0c-cbe3e8534c02";
+                    const voiceId = currentLang === 'en' ? "6ccbfb76-1fc6-48f7-b71d-91ac6298247b" : "65b25c5d-ff07-4687-a04c-da2f43ef6fa9";
                     const payload = {
                         context_id: contextId,
                         model_id: "sonic-3",

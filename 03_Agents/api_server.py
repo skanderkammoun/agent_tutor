@@ -18,19 +18,19 @@ brain = BrainAgent()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Démarrage du Serveur FastAPI (Subul Tuteur)...")
+    print("Démarrage du Serveur FastAPI (Subul Tuteur)...")
     await brain.setup()
 
-    print("🔥 Lancement du Warm-up réseau (pour éviter les 13s de latence au premier client)...")
+    print(" Lancement du Warm-up réseau (pour éviter les 13s de latence au premier client)...")
     try:
         await brain.search_index_manager.search("warmup test réseau")
-        print("✅ Réseau débouché et prêt (IPv4) !")
+        print(" Réseau débouché et prêt (IPv4) !")
     except Exception as e:
-        print(f"⚠️ Warm-up a échoué, mais l'API continue : {e}")
+        print(f" Warm-up a échoué, mais l'API continue : {e}")
 
-    print("✅ Index RAG vérifié. API prête à recevoir des requêtes !")
+    print(" Index RAG vérifié. API prête à recevoir des requêtes !")
     yield 
-    print("🛑 Extinction du serveur...")
+    print(" Extinction du serveur...")
 
 app = FastAPI(title="Subul API Web", lifespan=lifespan)
 
@@ -65,11 +65,11 @@ async def chat_endpoint(request: ChatRequest):
         try:
             consigne_langue = "\n\n(Règle stricte: Formule ta réponse IMPÉRATIVEMENT en Français.)" if final_lang == "fr" else "\n\n(Strict rule: Answer entirely in English.)"
             
-            # Message sécurisé sans le système de quota
+            
             message_securise = request.message + consigne_langue
 
             if not request.is_audio:
-                # Mode Texte
+                
                 async for chunk in agent.run_stream(message=message_securise, user_id=request.user_id, session_id=request.session_id):
                     payload = {"chunk": chunk, "status": "streaming", "lang": final_lang}
                     yield json.dumps(payload) + "\n"
@@ -77,7 +77,7 @@ async def chat_endpoint(request: ChatRequest):
                 yield json.dumps({"chunk": "", "status": "completed", "lang": final_lang}) + "\n"
 
             else:
-                # Mode Audio : Streaming temps réel optimisé (Latence zéro)
+                
                 buffer = ""
                 async for chunk in agent.run_stream(message=message_securise, user_id=request.user_id, session_id=request.session_id):
                     buffer += chunk
@@ -90,7 +90,7 @@ async def chat_endpoint(request: ChatRequest):
                             await asyncio.sleep(0.01) 
                         buffer = "" 
                 
-                # Envoi des derniers mots restants
+                
                 if buffer.strip():
                     payload = {"chunk": buffer.strip(), "status": "streaming", "lang": final_lang}
                     yield json.dumps(payload) + "\n"
@@ -98,7 +98,7 @@ async def chat_endpoint(request: ChatRequest):
                 yield json.dumps({"chunk": "", "status": "completed", "lang": final_lang}) + "\n"
                 
         except Exception as e:
-            print(f"❌ Erreur API : {e}")
+            print(f" Erreur API : {e}")
             yield json.dumps({"chunk": f"Erreur serveur: {e}", "status": "error"}) + "\n"
 
     return StreamingResponse(generate_response(), media_type="application/x-ndjson")
@@ -107,7 +107,7 @@ async def chat_endpoint(request: ChatRequest):
 def tts_endpoint(text: str, lang: str = "fr"):
     print(f"🔊 Demande Cartesia TTS ({lang}) : {text}")
     
-    voice_id = "6ccbfb76-1fc6-48f7-b71d-91ac6298247b" if lang == "en" else "f786b574-daa5-4673-aa0c-cbe3e8534c02"
+    voice_id = "6ccbfb76-1fc6-48f7-b71d-91ac6298247b" if lang == "en" else "65b25c5d-ff07-4687-a04c-da2f43ef6fa9"
     
     CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY")
     CARTESIA_URL = "https://api.cartesia.ai/tts/bytes"
@@ -141,13 +141,13 @@ def tts_endpoint(text: str, lang: str = "fr"):
         response = requests.post(CARTESIA_URL, headers=headers, json=payload)
         
         if response.status_code != 200:
-            print(f"❌ Erreur Serveur Cartesia: {response.text}")
+            print(f" Erreur Serveur Cartesia: {response.text}")
             raise HTTPException(status_code=500, detail=f"Erreur Cartesia: {response.text}")
 
         return Response(content=response.content, media_type="audio/wav")
         
     except Exception as e:
-        print(f"❌ Erreur locale TTS : {e}")
+        print(f" Erreur locale TTS : {e}")
         try:
             raise HTTPException(status_code=500, detail=str(e))
         except NameError:
