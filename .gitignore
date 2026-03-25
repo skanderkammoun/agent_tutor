@@ -16,3 +16,7 @@ check_integrity.py
 main.py
 clone_azure_docs.sh
 01_Knowledge_Base/data
+temp_auto_push.bat
+temp_interactive_push.bat
+branch_structure.json
+config.bat
